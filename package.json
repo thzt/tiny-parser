@@ -1,0 +1,23 @@
+{
+  "name": "tiny-parser",
+  "version": "1.0.0",
+  "description": "",
+  "main": "out/index.js",
+  "scripts": {
+    "w": "rm -rf out && tsc -w -p ./"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thzt/tiny-parser.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/thzt/tiny-parser/issues"
+  },
+  "homepage": "https://github.com/thzt/tiny-parser#readme",
+  "devDependencies": {
+    "typescript": "^4.0.2"
+  }
+}

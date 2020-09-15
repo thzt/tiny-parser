@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "ES2015",
+    "module": "System",
+    "sourceMap": true,
+    "rootDir": "./",
+    "outDir": "./out/",
+    "outFile": "./out/index.js"
+  },
+}
