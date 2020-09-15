@@ -1,10 +1,8 @@
 {
   "compilerOptions": {
-    "target": "ES2015",
-    "module": "System",
+    "target": "ESNext",
+    "module": "AMD",
     "sourceMap": true,
-    "rootDir": "./",
-    "outDir": "./out/",
     "outFile": "./out/index.js"
   },
 }

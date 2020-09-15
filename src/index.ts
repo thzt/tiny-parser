@@ -2,7 +2,12 @@
 
 namespace Parser {
   const main = () => {
-    const ast = parse(`<aa><bb>cc</bb></aa>`);
+    const ast = parse(`
+      (ab cd 
+        (ee ff gg)
+      )
+    `);
+
     debugger;
   };
 

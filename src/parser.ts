@@ -4,81 +4,79 @@ namespace Parser {
   let pos: number;
   let end: number;
 
+  let token;
+
   /**
    * syntax
-   *   body = '<' identifier '>' body '</' identifier '>' | identifier
-   *   identifier : [a-zA-Z_$][a-zA-Z_$0-9]*
-   *   whitespace : ' ' | '\n'
+   *   list       = '(' elements ')'
+   *   elements   = element | element elements
+   *   element    = identifier | list
+   * 
+   *   identifier = [a-z]+
+   *   whitespace = ' ' | '\n'
+   * 
+   * example
+   *   (ab cd (ee ff gg))
    */
   export function parse(code) {
     sourceText = code;
     pos = 0;
     end = sourceText.length;
 
-    const body = parseBody();
-    const eof = nextToken();
-    console.assert(eof.type !== 'EndOfFile');
+    nextToken();
+    assert(SyntaxKind.LeftBracket);
+    const body = parseList();
+    nextToken();
+    assert(SyntaxKind.EndOfFile);
 
     return body;
   }
 
-  function parseBody() {
-    const token = nextToken();  // <
-    if (token.type !== 'LessThanToken') {
-      return token;
-    }
-    const id1 = nextToken();  // identifier
-    nextToken();  // >
-    const child = parseBody();
-    nextToken();  // </
-    const id2 = nextToken();  // identifier
-    nextToken();  // >
+  function parseList() {
+    const elements = parseElements();
+    const rb = nextToken();
 
-    return {
-      id1,
-      id2,
-      child,
-    };
+    return elements;
+  }
+
+  function parseElements() {
+    const elements = [];
+
+    while (true) {
+      nextToken();
+      if (isElementsTeminate()) {
+        break;
+      }
+
+      const element = parseElement();
+      elements.push(element);
+    }
+
+    return elements;
+  }
+
+  function parseElement() {
+    if (token.kind === SyntaxKind.LeftBracket) {
+      return parseList();
+    }
+
+    console.assert(token.kind === SyntaxKind.Identifier);
+    return token;
   }
 
   function nextToken() {
     while (true) {
-      const tokenStart = pos;
       if (pos >= end) {
-        const token = {
-          type: 'EndOfFile',
-          pos: pos,
-          end: pos,
-        };
-        return token;
+        return token = createNode(SyntaxKind.EndOfFile, pos, pos, null);
       }
 
       let ch = sourceText.charAt(pos);
       switch (ch) {
-        case '<':
-          if (sourceText.charAt(pos + 1) === '/') {
-            return {
-              type: 'LessThanSlashToken',
-              value: '</',
-              pos: pos += 2,
-              end: pos,
-            };
-          }
+        case '(':
+          return token = createNode(SyntaxKind.LeftBracket, pos++, pos, '(');
 
-          return {
-            type: 'LessThanToken',
-            value: '<',
-            pos: pos++,
-            end: pos,
-          };
-
-        case '>':
-          return {
-            type: 'GreaterThanToken',
-            value: '>',
-            pos: pos++,
-            end: pos,
-          };
+        case ')':
+          return token = createNode(SyntaxKind.RightBracket, pos++, pos, ')');
 
         case ' ':
         case '\n':
@@ -87,29 +85,23 @@ namespace Parser {
 
         default:
           if (isIdentifierStart(ch)) {
-            return scanIdentifier(tokenStart);
+            return token = scanIdentifier();
           }
 
-          return {
-            type: 'Unknown',
-            pos: pos++,
-            end: pos,
-          };
+          return token = createNode(SyntaxKind.RightBracket, pos++, pos, ch);
       }
     }
   }
 
   function isIdentifierStart(ch) {
-    return ch >= 'A' && ch <= 'Z' || ch >= 'a' && ch <= 'z' || ch === '$' || ch === '_';
+    return ch >= 'a' && ch <= 'z';
   }
   function isIdentifierPart(ch) {
-    return isIdentifierStart(ch) || idDigit(ch);
-  }
-  function idDigit(ch) {
-    return ch >= '0' && ch <= '9';
+    return isIdentifierStart(ch);
   }
 
-  function scanIdentifier(tokenStart) {
+  function scanIdentifier() {
+    const identifierStart = pos;
     pos++;
 
     while (true) {
@@ -123,12 +115,44 @@ namespace Parser {
       pos++;
     }
 
-    const value = sourceText.slice(tokenStart, pos);
+    const value = sourceText.slice(identifierStart, pos);
+    return createNode(SyntaxKind.Identifier, pos, end, value);
+  }
+
+  function isElementsTeminate() {
+    switch (token.kind) {
+      case SyntaxKind.EndOfFile:
+      case SyntaxKind.RightBracket:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  function createNode(kind: SyntaxKind, pos, end, value) {
     return {
-      type: 'Identifier',
+      kind,
+      kindName: Object.values(SyntaxKind)[kind],
+      pos,
+      end,
       value,
-      pos: tokenStart,
-      end: pos,
     };
+  }
+
+  function assert(kind) {
+    if (token.kind === kind) {
+      return;
+    }
+
+    const message = `unexpected token: ${JSON.stringify(token)}`;
+    throw new Error(message);
+  }
+
+  enum SyntaxKind {
+    LeftBracket,
+    RightBracket,
+    Identifier,
+    Unknown,
+    EndOfFile,
   }
 }
