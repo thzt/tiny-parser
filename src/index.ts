@@ -3,9 +3,11 @@
 namespace Parser {
   const main = () => {
     const ast = parse(`
-      (ab cd 
-        (ee ff gg)
-      )
+      <div id="tiny" class="parser">
+        <span>
+          abc
+        </span>
+      </div>
     `);
 
     debugger;

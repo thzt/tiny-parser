@@ -6,51 +6,79 @@ var Parser;
     let token;
     /**
      * syntax
-     *   list       = '(' elements ')'
-     *   elements   = element | element elements
-     *   element    = identifier | list
+     *   html       = '<' identifier props '>' html '</' identifier '>' | identifier
+     *   props      = '' | identifier '=' '"' identifier '"'
      *
      *   identifier = [a-z]+
      *   whitespace = ' ' | '\n'
      *
      * example
-     *   (ab cd (ee ff gg))
+     *   <div class="test"><span>abc</span></div>
      */
     function parse(code) {
         sourceText = code;
         pos = 0;
         end = sourceText.length;
-        nextToken();
+        nextToken(); // <
         assert(SyntaxKind.LeftBracket);
-        const body = parseList();
-        nextToken();
+        const html = parseHtml();
+        nextToken(); // eof
         assert(SyntaxKind.EndOfFile);
-        return body;
+        return html;
     }
     Parser.parse = parse;
-    function parseList() {
-        const elements = parseElements();
-        const rb = nextToken();
-        return elements;
+    function parseHtml() {
+        nextToken(); // identifier
+        assert(SyntaxKind.Identifier);
+        const tagName = token;
+        nextToken(); // identifier or '>'
+        const props = parseProps();
+        nextToken(); // identifier or '<'
+        let child;
+        if (token.kind === SyntaxKind.Identifier) {
+            child = token;
+        }
+        else {
+            assert(SyntaxKind.LeftBracket);
+            child = parseHtml();
+        }
+        nextToken(); // </
+        assert(SyntaxKind.LeftBracketSlash);
+        nextToken(); // identifier
+        assert(SyntaxKind.Identifier);
+        const rightTagName = token;
+        nextToken(); // >
+        assert(SyntaxKind.RightBracket);
+        return {
+            tagName,
+            props,
+            child,
+            rightTagName,
+        };
     }
-    function parseElements() {
-        const elements = [];
+    function parseProps() {
+        const props = [];
         while (true) {
-            nextToken();
-            if (isElementsTeminate()) {
+            if (token.kind === SyntaxKind.RightBracket) {
                 break;
             }
-            const element = parseElement();
-            elements.push(element);
+            assert(SyntaxKind.Identifier);
+            const propName = token;
+            nextToken(); // =
+            assert(SyntaxKind.Equal);
+            nextToken(); // "
+            assert(SyntaxKind.Quote);
+            nextToken(); // identifier
+            assert(SyntaxKind.Identifier);
+            const propValue = token;
+            props.push({
+                name: propName,
+                value: propValue,
+            });
+            nextToken(); // "
+            nextToken(); // identifier or '>'
         }
-        return elements;
-    }
-    function parseElement() {
-        if (token.kind === SyntaxKind.LeftBracket) {
-            return parseList();
-        }
-        console.assert(token.kind === SyntaxKind.Identifier);
-        return token;
+        return props;
     }
     function nextToken() {
         while (true) {
@@ -59,19 +87,26 @@ var Parser;
             }
             let ch = sourceText.charAt(pos);
             switch (ch) {
-                case '(':
-                    return token = createNode(SyntaxKind.LeftBracket, pos++, pos, '(');
-                case ')':
-                    return token = createNode(SyntaxKind.RightBracket, pos++, pos, ')');
+                case '<':
+                    if (sourceText.charAt(pos + 1) === '/') {
+                        return token = createNode(SyntaxKind.LeftBracketSlash, pos, pos += 2, '</');
+                    }
+                    return token = createNode(SyntaxKind.LeftBracket, pos, ++pos, '<');
+                case '>':
+                    return token = createNode(SyntaxKind.RightBracket, pos, ++pos, '>');
+                case '=':
+                    return token = createNode(SyntaxKind.Equal, pos, ++pos, '=');
+                case '"':
+                    return token = createNode(SyntaxKind.Quote, pos, ++pos, '"');
                 case ' ':
                 case '\n':
-                    pos++;
+                    ++pos;
                     continue;
                 default:
                     if (isIdentifierStart(ch)) {
                         return token = scanIdentifier();
                     }
-                    return token = createNode(SyntaxKind.RightBracket, pos++, pos, ch);
+                    return token = createNode(SyntaxKind.RightBracket, pos, ++pos, ch);
             }
         }
     }
@@ -83,7 +118,7 @@ var Parser;
     }
     function scanIdentifier() {
         const identifierStart = pos;
-        pos++;
+        ++pos;
         while (true) {
             if (pos >= end) {
                 break;
@@ -92,19 +127,10 @@ var Parser;
             if (!isIdentifierPart(ch)) {
                 break;
             }
-            pos++;
+            ++pos;
         }
         const value = sourceText.slice(identifierStart, pos);
-        return createNode(SyntaxKind.Identifier, pos, end, value);
-    }
-    function isElementsTeminate() {
-        switch (token.kind) {
-            case SyntaxKind.EndOfFile:
-            case SyntaxKind.RightBracket:
-                return true;
-            default:
-                return false;
-        }
+        return createNode(SyntaxKind.Identifier, identifierStart, pos, value);
     }
     function createNode(kind, pos, end, value) {
         return {
@@ -129,6 +155,9 @@ var Parser;
         SyntaxKind[SyntaxKind["Identifier"] = 2] = "Identifier";
         SyntaxKind[SyntaxKind["Unknown"] = 3] = "Unknown";
         SyntaxKind[SyntaxKind["EndOfFile"] = 4] = "EndOfFile";
+        SyntaxKind[SyntaxKind["LeftBracketSlash"] = 5] = "LeftBracketSlash";
+        SyntaxKind[SyntaxKind["Equal"] = 6] = "Equal";
+        SyntaxKind[SyntaxKind["Quote"] = 7] = "Quote";
     })(SyntaxKind || (SyntaxKind = {}));
 })(Parser || (Parser = {}));
 /// <reference path="parser.ts" />
@@ -136,9 +165,11 @@ var Parser;
 (function (Parser) {
     const main = () => {
         const ast = Parser.parse(`
-      (ab cd 
-        (ee ff gg)
-      )
+      <div id="tiny" class="parser">
+        <span>
+          abc
+        </span>
+      </div>
     `);
         debugger;
     };
