@@ -14,21 +14,10 @@ var Parser;
     let length;
     let token;
     /**
-      四则运算的文法（只包含 加法 和 乘法）
-        Expr   -> Expr + Term | Term
-        Term   -> Term * Factor | Factor
+     * 四则运算表达式的文法（只包含加法和乘法）
+        Expr -> Term | Term + Expr
+        Term -> Factor | Factor * Term
         Factor -> NUMBER | ( Expr )
-   
-      消除左递归
-        Expr  -> Term Expr'
-        Expr' -> + Term Expr' | ε
-        
-        Term  -> Factor Term'
-        Term' -> * Factor Term' | ε
-        
-        Factor  -> NUMBER | ( Expr )
-   
-      Ref: https://zhuanlan.zhihu.com/p/208906640
      */
     function parse(code) {
         sourceText = code;
@@ -40,75 +29,50 @@ var Parser;
         return expr;
     }
     Parser.parse = parse;
-    // Expr  -> Term Expr'
+    // Expr -> Term | Term + Expr
     function parseExpr() {
         const term = parseTerm();
-        const exprPlus = parseExprPlus(term);
-        return exprPlus;
-    }
-    // Expr' -> + Term Expr' | ε
-    function parseExprPlus(term) {
-        switch (token.kind) {
-            case TokenKind.Plus: {
-                nextToken();
-                const rightTerm = parseTerm();
-                const exprPlus = parseExprPlus(rightTerm);
-                return {
-                    left: term,
-                    operator: '+',
-                    right: exprPlus,
-                };
-            }
-            default: {
-                return term;
-            }
+        if (token.kind === TokenKind.Plus) {
+            nextToken();
+            const expr = parseExpr();
+            return {
+                left: term,
+                right: expr,
+                operator: '+',
+            };
         }
+        return term;
     }
-    // Term  -> Factor Term'
+    // Term -> Factor | Factor * Term
     function parseTerm() {
         const factor = parseFactor();
-        const termPlus = parseTermPlus(factor);
-        return termPlus;
-    }
-    // Term' -> * Factor Term' | ε
-    function parseTermPlus(factor) {
-        switch (token.kind) {
-            case TokenKind.Multiple: {
-                nextToken();
-                const rightFactor = parseFactor();
-                const termPlus = parseTermPlus(rightFactor);
-                return {
-                    left: factor,
-                    operator: '*',
-                    right: termPlus,
-                };
-            }
-            default: {
-                return factor;
-            }
+        if (token.kind === TokenKind.Multiple) {
+            nextToken();
+            const term = parseTerm();
+            return {
+                left: factor,
+                right: term,
+                operator: '*',
+            };
         }
+        return factor;
     }
-    // Factor  -> NUMBER | ( Expr )
+    // Factor -> NUMBER | ( Expr )
     function parseFactor() {
-        switch (token.kind) {
-            case TokenKind.Number: {
-                const num = token;
-                nextToken();
-                return num;
-            }
-            case TokenKind.LeftParenthesis: {
-                nextToken();
-                const expr = parseExpr();
-                assert(TokenKind.RightParenthesis);
-                nextToken();
-                return expr;
-            }
-            default: {
-                debugger;
-                throw new Error('parseFactor error');
-            }
+        if (token.kind === TokenKind.Number) {
+            const num = token;
+            nextToken();
+            return num;
+        }
+        if (token.kind === TokenKind.LeftParenthesis) {
+            nextToken();
+            const expr = parseExpr();
+            assert(TokenKind.RightParenthesis);
+            nextToken();
+            return expr;
         }
     }
+    // 词法分析器
     function nextToken() {
         while (true) {
             if (pos >= length) {
@@ -179,7 +143,7 @@ var Parser;
 (function (Parser) {
     const main = () => {
         const ast = Parser.parse(`
-      (1 + 2) + (3 + 4) * (5 + 6)
+      ((1 + 2) * 3 + 4) * (5 + 6)
     `);
         debugger;
     };
