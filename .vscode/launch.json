@@ -19,7 +19,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "run js source code",
+      "name": "run js code",
       "skipFiles": [
         "<node_internals>/**"
       ],
